@@ -19,6 +19,7 @@
 - [Stack Support](#stack-support)
 - [Output Report](#output-report)
 - [Limitations](#limitations)
+- [Contributing](#contributing)
 
 ---
 
@@ -187,3 +188,43 @@ plugins/claude-taskforce/skills/qa/references/node.md
 - 작은 기능 단위에서 주로 검증되었습니다. 여러 파일에 걸친 대규모 기능에서의 컨텍스트 전달은 더 검증이 필요합니다.
 - 재실행은 단계당 1회로 제한됩니다. 복잡한 수정이 한 번에 안 끝날 수 있습니다.
 - 이 시스템의 품질은 곧 **에이전트 역할 정의서(스킬)의 품질**입니다. 프로젝트 특성에 맞게 스킬을 다듬으면 결과가 좋아집니다.
+
+---
+
+## Contributing
+
+이슈와 PR 모두 환영합니다. 특히 **새 스택 참조 파일** 기여가 가장 큰 도움이 됩니다.
+
+### 새 스택 추가 (가장 환영하는 기여)
+
+스킬 본문은 기술 중립이므로, 새 스택 지원은 참조 파일만 추가하면 됩니다.
+
+1. `plugins/claude-taskforce/skills/implementer/references/<스택>.md` 작성
+   - 그 스택의 테스트 프레임워크 문법, 단위/통합 테스트 작성법, 빌드·검증 명령
+2. `plugins/claude-taskforce/skills/qa/references/<스택>.md` 작성
+   - API 시나리오 검증 방법, 테스트 실행 명령
+3. `README.md`의 [Supported Stacks](#stack-support) 표에 추가
+4. PR 생성
+
+> 기존 `references/spring-boot.md`를 템플릿으로 참고하세요.
+
+### 스킬 수정 가이드
+
+- **스킬 본문(`skill.md`)은 특정 언어·프레임워크에 종속되지 않게** 유지합니다. TDD 원칙·리뷰 기준·QA 시나리오 같은 공통 로직만 담습니다.
+- 프레임워크별 세부(문법·애너테이션·명령)는 반드시 `references/<스택>.md`로 분리합니다.
+
+### 로컬 테스트
+
+변경 후 설치 없이 매니페스트를 검증하고, 로컬 마켓플레이스로 설치해 확인할 수 있습니다.
+
+```bash
+# 매니페스트 검증
+claude plugin validate plugins/claude-taskforce
+claude plugin validate .
+
+# 로컬 경로를 마켓플레이스로 등록 후 설치
+claude plugin marketplace add "$(pwd)" --scope local
+claude plugin install claude-taskforce@woojjam-marketplace --scope local
+```
+
+설치 후 Claude Code를 재시작하고 `/task`로 동작을 확인합니다.
