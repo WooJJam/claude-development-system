@@ -16,7 +16,9 @@
 | Step 1 | Researcher | `${CLAUDE_PLUGIN_ROOT}/skills/researcher/skill.md` |
 | Step 2 | Planner | `${CLAUDE_PLUGIN_ROOT}/skills/planner/skill.md` |
 | Step 3 | Implementer | `${CLAUDE_PLUGIN_ROOT}/skills/implementer/skill.md` |
-| Step 4 | Reviewer | `${CLAUDE_PLUGIN_ROOT}/skills/reviewer/skill.md` |
+| Step 4 | Reviewer (병렬) | `${CLAUDE_PLUGIN_ROOT}/skills/reviewer/{plan,logic,convention}/skill.md` |
+| Step 4 | Reviewer (조건부) | `${CLAUDE_PLUGIN_ROOT}/skills/reviewer/architecture/skill.md` |
+| Step 4 | Review Orchestrator | `${CLAUDE_PLUGIN_ROOT}/skills/reviewer/orchestrator/skill.md` |
 | Step 5 | QA | `${CLAUDE_PLUGIN_ROOT}/skills/qa/skill.md` |
 | Step 6 | Summarizer | `${CLAUDE_PLUGIN_ROOT}/skills/summarizer/skill.md` |
 
@@ -27,9 +29,10 @@
 [자동] Step 2: Planner      → 결과(B: 구현 계획) 수신, 컨텍스트: A 포함
 [멈춤] APPROVED: <run-id> 대기
 [자동] Step 3: Implementer  → 결과(C) 수신, 컨텍스트: B 포함
-[자동] Step 4: Reviewer     → 결과 수신, 컨텍스트: C 포함
-         ├─ CRITICAL? → Step 3 재실행 (Fix 모드, max 1회)
-         └─ OK        → Step 5
+[자동] Step 4: Reviewer (병렬) → Plan / Logic / Convention / [Architecture]
+         → Review Orchestrator → 최종 판정
+         ├─ 재구현 필요: YES → Step 3 재실행 (Fix 모드, max 1회)
+         └─ NO              → Step 5
 [자동] Step 5: QA           → 결과 수신, 컨텍스트: B + C 포함
          ├─ 실패?     → Step 3 재실행 (Fix 모드, max 1회)
          └─ 통과      → Step 6
@@ -122,22 +125,84 @@ Agent 도구로 서브 에이전트를 실행한다.
 
 ---
 
-### Step 4 — Reviewer
+### Step 4 — Reviewer (병렬 실행 → Orchestrator 취합)
 
-Agent 도구로 서브 에이전트를 실행한다.
+#### 4-1. 병렬 리뷰어 실행
 
+아래 3개를 Agent 도구로 동시에 실행한다.
+
+**Plan Compliance Reviewer:**
 ```
-`${CLAUDE_PLUGIN_ROOT}/skills/reviewer/skill.md`를 읽고 그 내용에 따라 코드 리뷰를 수행하라.
+`${CLAUDE_PLUGIN_ROOT}/skills/reviewer/plan/skill.md`를 읽고 그 내용에 따라 Plan Compliance 리뷰를 수행하라.
+
+[승인된 구현 계획]
+{결과(B) 전문}
+
+[구현 결과]
+{결과(C) 전문}
+```
+
+**Logic & Edge Case Reviewer:**
+```
+`${CLAUDE_PLUGIN_ROOT}/skills/reviewer/logic/skill.md`를 읽고 그 내용에 따라 Logic & Edge Case 리뷰를 수행하라.
+
+[승인된 구현 계획]
+{결과(B) 전문}
+
+[구현 결과]
+{결과(C) 전문}
+```
+
+**Code Convention Reviewer:**
+```
+`${CLAUDE_PLUGIN_ROOT}/skills/reviewer/convention/skill.md`를 읽고 그 내용에 따라 Code Convention 리뷰를 수행하라.
 
 [구현 결과]
 {결과(C) 전문}
 
-[구현 목표]
-{결과(B)에서 "구현 목표" 항목}
+[컨벤션 문서 경로]
+{결과(A)의 "컨벤션 문서 경로" 값, 없으면 "없음"}
 ```
 
-결과에서 **`재구현 필요: YES`** 확인 시:
-- 수정 지침을 포함하여 Step 3 Fix 모드로 재실행 (1회에 한함)
+#### 4-2. Architecture Reviewer (조건부)
+
+결과(A)의 "아키텍처 문서 경로"가 "없음"이 아닌 경우에만 추가로 실행한다.
+
+```
+`${CLAUDE_PLUGIN_ROOT}/skills/reviewer/architecture/skill.md`를 읽고 그 내용에 따라 Architecture 리뷰를 수행하라.
+
+[승인된 구현 계획]
+{결과(B) 전문}
+
+[구현 결과]
+{결과(C) 전문}
+
+[아키텍처 문서 경로]
+{결과(A)의 "아키텍처 문서 경로" 값}
+```
+
+#### 4-3. Review Orchestrator
+
+모든 리뷰어 결과 수집 후 실행한다.
+
+```
+`${CLAUDE_PLUGIN_ROOT}/skills/reviewer/orchestrator/skill.md`를 읽고 그 내용에 따라 리뷰 결과를 취합하라.
+
+[Plan Compliance 결과]
+{Plan Compliance Reviewer 결과 전문}
+
+[Logic & Edge Case 결과]
+{Logic & Edge Case Reviewer 결과 전문}
+
+[Code Convention 결과]
+{Code Convention Reviewer 결과 전문}
+
+[Architecture 결과]
+{Architecture Reviewer 결과 전문, 실행하지 않은 경우 "미실행"}
+```
+
+Orchestrator 결과에서 **`재구현 필요: YES`** 확인 시:
+- 통합 수정 지침을 포함하여 Step 3 Fix 모드로 재실행 (1회에 한함)
 - 재실행 후 Step 5로 진행
 
 **`재구현 필요: NO`** 시 Step 5로 진행.
